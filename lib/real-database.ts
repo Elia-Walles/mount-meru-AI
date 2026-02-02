@@ -474,6 +474,10 @@ export class RealDatabase {
   }
 
   // Reports
+  private defaultReportContent(): Report['content'] {
+    return { summary: '', tables: [], charts: [], interpretation: '' };
+  }
+
   async getReports(userId?: string): Promise<Report[]> {
     const query = userId ? 
       `SELECT id, title, type, period_start as periodStart, period_end as periodEnd, content,
@@ -488,20 +492,29 @@ export class RealDatabase {
     
     const params = userId ? [userId] : [];
     const rows = await db.query<any[]>(query, params);
-    
-    return rows.map((row: any) => ({
-      id: row.id,
-      title: row.title,
-      type: row.type,
-      period: {
-        start: new Date(row.periodStart),
-        end: new Date(row.periodEnd)
-      },
-      generatedAt: new Date(row.generatedAt),
-      generatedBy: row.generatedBy,
-      format: row.format,
-      content: parseJson(row.content, {})
-    }));
+    const defaultContent = this.defaultReportContent();
+
+    return rows.map((row: any) => {
+      const content = parseJson(row.content, defaultContent) as Report['content'];
+      return {
+        id: row.id,
+        title: row.title,
+        type: row.type,
+        period: {
+          start: new Date(row.periodStart),
+          end: new Date(row.periodEnd)
+        },
+        generatedAt: new Date(row.generatedAt),
+        generatedBy: row.generatedBy,
+        format: row.format,
+        content: {
+          summary: typeof content.summary === 'string' ? content.summary : defaultContent.summary,
+          tables: Array.isArray(content.tables) ? content.tables : defaultContent.tables,
+          charts: Array.isArray(content.charts) ? content.charts : defaultContent.charts,
+          interpretation: typeof content.interpretation === 'string' ? content.interpretation : defaultContent.interpretation
+        }
+      } as Report;
+    });
   }
 
   async saveReport(reportData: Omit<Report, 'id' | 'generatedAt'>): Promise<Report> {
@@ -531,7 +544,8 @@ export class RealDatabase {
     `, [id]);
     
     if (!row) return null;
-    
+    const defaultContent = this.defaultReportContent();
+    const content = parseJson(row.content, defaultContent) as Report['content'];
     return {
       id: row.id,
       title: row.title,
@@ -543,8 +557,13 @@ export class RealDatabase {
       generatedAt: new Date(row.generatedAt),
       generatedBy: row.generatedBy,
       format: row.format,
-      content: parseJson(row.content, {})
-    };
+      content: {
+        summary: typeof content.summary === 'string' ? content.summary : defaultContent.summary,
+        tables: Array.isArray(content.tables) ? content.tables : defaultContent.tables,
+        charts: Array.isArray(content.charts) ? content.charts : defaultContent.charts,
+        interpretation: typeof content.interpretation === 'string' ? content.interpretation : defaultContent.interpretation
+      }
+    } as Report;
   }
 
   // Test connection
