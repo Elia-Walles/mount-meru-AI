@@ -1,58 +1,7 @@
 // Client-side API service for database operations
-// This replaces direct database imports with API calls
+import type { User, Dataset, PatientRecord, AnalyticsResult, Report } from './types';
 
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: 'administrator' | 'data_analyst' | 'clinician' | 'me_officer' | 'medical_recorder' | 'hospital_management';
-  department?: string;
-  isActive: boolean;
-  lastLogin: Date | null;
-}
-
-export interface Dataset {
-  id: string;
-  name: string;
-  description: string;
-  department: 'opd' | 'ipd' | 'laboratory' | 'pharmacy' | 'rch' | 'theatre' | 'mortuary';
-  fileType: 'excel' | 'csv' | 'tsv' | 'pdf' | 'image' | 'bulk';
-  uploadedBy: string;
-  uploadedAt: Date;
-  rowCount: number;
-  columns: string[];
-  isProcessed: boolean;
-  tags: string[];
-}
-
-export interface PatientRecord {
-  id: string;
-  datasetId: string;
-  patientId: string;
-  age: number;
-  sex: 'male' | 'female';
-  department: string;
-  diagnosis: string;
-  icd10Code?: string;
-  serviceProvided: string;
-  visitDate: Date;
-  outcome: string;
-  referralStatus: string;
-  waitingTime?: number;
-  lengthOfStay?: number;
-}
-
-export interface AnalyticsResult {
-  id: string;
-  datasetId: string;
-  analysisType: 'descriptive' | 'trend' | 'epidemiological' | 'statistical' | 'surveillance' | 'forecasting';
-  query: string;
-  results: any;
-  interpretation: string;
-  recommendations: string[];
-  generatedAt: Date;
-  generatedBy: string;
-}
+export type { User, Dataset, PatientRecord, AnalyticsResult, Report };
 
 class ApiService {
   private baseUrl = '/api';
@@ -145,6 +94,88 @@ class ApiService {
     }
   }
 
+  async uploadDataset(file: File, department: string, uploadedBy: string, name?: string): Promise<{ success: boolean; dataset?: Dataset; message?: string }> {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('department', department);
+      formData.append('uploadedBy', uploadedBy);
+      if (name) formData.append('name', name);
+
+      const response = await fetch(`${this.baseUrl}/datasets/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (data.success && data.dataset) {
+        return {
+          success: true,
+          dataset: {
+            ...data.dataset,
+            uploadedAt: new Date(data.dataset.uploadedAt),
+            columns: data.dataset.columns || [],
+            tags: data.dataset.tags || []
+          }
+        };
+      }
+      return { success: false, message: data.message || 'Upload failed' };
+    } catch (error) {
+      console.error('Upload dataset API error:', error);
+      return { success: false, message: 'Network error occurred' };
+    }
+  }
+
+  async getTrashDatasets(userId?: string): Promise<Dataset[]> {
+    try {
+      const url = userId ? `${this.baseUrl}/datasets/trash?userId=${userId}` : `${this.baseUrl}/datasets/trash`;
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.success) {
+        return (data.datasets || []).map((d: any) => ({
+          ...d,
+          uploadedAt: new Date(d.uploadedAt),
+          columns: d.columns || [],
+          tags: d.tags || []
+        }));
+      }
+      return [];
+    } catch (error) {
+      console.error('Get trash API error:', error);
+      return [];
+    }
+  }
+
+  async softDeleteDataset(id: string, userId?: string): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl}/datasets/${id}/trash`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      const data = await response.json();
+      return data.success === true;
+    } catch (error) {
+      console.error('Soft delete API error:', error);
+      return false;
+    }
+  }
+
+  async restoreDataset(id: string, userId?: string): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl}/datasets/${id}/restore`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      const data = await response.json();
+      return data.success === true;
+    } catch (error) {
+      console.error('Restore API error:', error);
+      return false;
+    }
+  }
+
   // Patient Records
   async getPatientRecords(datasetId: string): Promise<PatientRecord[]> {
     try {
@@ -212,14 +243,14 @@ class ApiService {
     }
   }
 
-  async performAnalytics(datasetId: string, query: string): Promise<{ success: boolean; message: string; results: any }> {
+  async performAnalytics(datasetId: string, query: string, generatedBy?: string): Promise<{ success: boolean; message: string; results: any }> {
     try {
       const response = await fetch(`${this.baseUrl}/analytics`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ datasetId, query }),
+        body: JSON.stringify({ datasetId, query, generatedBy }),
       });
 
       const data = await response.json();
@@ -285,6 +316,50 @@ class ApiService {
     } catch (error) {
       console.error('Validate query API error:', error);
       return { isValid: true };
+    }
+  }
+
+  // Reports
+  async getReports(userId?: string): Promise<Report[]> {
+    try {
+      const url = userId ? `${this.baseUrl}/reports?userId=${userId}` : `${this.baseUrl}/reports`;
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.success && data.reports) {
+        return data.reports.map((r: any) => ({
+          ...r,
+          period: { start: new Date(r.period?.start || r.periodStart), end: new Date(r.period?.end || r.periodEnd) },
+          generatedAt: new Date(r.generatedAt),
+        }));
+      }
+      return [];
+    } catch (error) {
+      console.error('Get reports API error:', error);
+      return [];
+    }
+  }
+
+  async generateReport(params: { title: string; type: string; generatedBy: string; format?: string }): Promise<Report | null> {
+    try {
+      const response = await fetch(`${this.baseUrl}/reports`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      });
+      const data = await response.json();
+      if (data.success && data.report) {
+        const r = data.report;
+        return {
+          ...r,
+          period: { start: new Date(r.period?.start), end: new Date(r.period?.end) },
+          generatedAt: new Date(r.generatedAt),
+          content: r.content || {},
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error('Generate report API error:', error);
+      return null;
     }
   }
 }

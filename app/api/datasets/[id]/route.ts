@@ -3,13 +3,12 @@ import { dbAdapter } from '@/lib/database-adapter';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Initialize database if not already done
     await dbAdapter.initialize();
-    
-    const dataset = await dbAdapter.getDatasetById(params.id);
+    const { id } = await params;
+    const dataset = await dbAdapter.getDatasetById(id);
     
     if (!dataset) {
       return NextResponse.json({ 
@@ -33,13 +32,12 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const updateData = await request.json();
-    
-    // Initialize database if not already done
     await dbAdapter.initialize();
+    await params;
     
     // This would need to be implemented in the database adapter
     // For now, return success

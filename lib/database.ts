@@ -1,34 +1,36 @@
-// Try to import mysql2, but fall back to stub if not available
-let mysql: any;
-try {
-  mysql = require('mysql2/promise');
-} catch (error) {
-  console.log('MySQL2 not available, using real stub');
-  mysql = require('./mysql2-real-stub');
-}
+// Production: require real MySQL2 driver (no stub)
+const mysql = require('mysql2/promise');
 
 import fs from 'fs';
 import path from 'path';
 
+// Build SSL config: use cert file if present, otherwise rely on system CAs (rejectUnauthorized: true)
+function getSslConfig(): { ca?: Buffer; rejectUnauthorized: boolean } {
+  const certPath = path.join(process.cwd(), 'certs', 'isrgrootx1.pem');
+  try {
+    if (fs.existsSync(certPath)) {
+      return { ca: fs.readFileSync(certPath), rejectUnauthorized: true };
+    }
+  } catch {
+    // ignore
+  }
+  // TiDB Cloud accepts connections with system CA bundle
+  return { rejectUnauthorized: true };
+}
+
 // Database configuration from environment variables
 const dbConfig = {
   host: process.env.DATABASE_HOST || 'gateway01.eu-central-1.prod.aws.tidbcloud.com',
-  port: parseInt(process.env.DATABASE_PORT || '4000'),
+  port: parseInt(process.env.DATABASE_PORT || '4000', 10),
   user: process.env.DATABASE_USERNAME || '2yYx8Tpj48B2C7P.root',
   password: process.env.DATABASE_PASSWORD || 'jaaz5rUzgezbwOW8',
   database: process.env.DATABASE_NAME || 'mount_meru',
-  ssl: {
-    ca: fs.readFileSync(path.join(process.cwd(), 'certs/isrgrootx1.pem')),
-    rejectUnauthorized: true
-  },
+  ssl: getSslConfig(),
   connectionLimit: 10,
-  acquireTimeout: 60000,
-  timeout: 60000,
-  reconnect: true
 };
 
 // Create connection pool
-const pool = mysql.createPool ? mysql.createPool(dbConfig) : null;
+const pool = mysql.createPool(dbConfig);
 
 // Database connection class
 export class Database {
@@ -154,6 +156,7 @@ export async function initializeDatabase(): Promise<void> {
         name VARCHAR(255) NOT NULL,
         role ENUM('administrator', 'data_analyst', 'clinician', 'me_officer', 'medical_recorder', 'hospital_management') NOT NULL,
         department VARCHAR(100),
+        password_hash VARCHAR(255),
         is_active BOOLEAN DEFAULT TRUE,
         last_login TIMESTAMP NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -262,6 +265,50 @@ export async function initializeDatabase(): Promise<void> {
         FOREIGN KEY (generated_by) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
+
+    // Verification tokens for email verification
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS verification_tokens (
+        token VARCHAR(64) PRIMARY KEY,
+        email VARCHAR(255) NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_expires (expires_at)
+      )
+    `);
+
+    // Reset tokens for password reset
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS reset_tokens (
+        token VARCHAR(64) PRIMARY KEY,
+        email VARCHAR(255) NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_expires (expires_at)
+      )
+    `);
+
+    // Add password_hash to users if missing (migration for existing deployments)
+    try {
+      await db.query(
+        `ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NULL DEFAULT NULL`
+      );
+      console.log('✅ Added password_hash column to users');
+    } catch (e: unknown) {
+      const msg = e && typeof e === 'object' && 'code' in e ? (e as { code: string }).code : '';
+      if (msg !== 'ER_DUP_FIELDNAME') throw e;
+    }
+
+    // Add deleted_at to datasets for soft delete / Trash
+    try {
+      await db.query(
+        `ALTER TABLE datasets ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL`
+      );
+      console.log('✅ Added deleted_at column to datasets');
+    } catch (e: unknown) {
+      const msg = e && typeof e === 'object' && 'code' in e ? (e as { code: string }).code : '';
+      if (msg !== 'ER_DUP_FIELDNAME') throw e;
+    }
 
     console.log('✅ Database schema initialized successfully');
   } catch (error) {

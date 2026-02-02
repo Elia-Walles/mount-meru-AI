@@ -83,40 +83,40 @@ export default function AIAnalyst({ selectedDataset, patientRecords, onQuery }: 
   ];
 
   return (
-    <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
+    <div className="w-96 bg-white border-l-2 border-slate-200 shadow-sm flex flex-col">
       {/* Header */}
-      <div className="p-6 border-b border-gray-200">
+      <div className="p-6 border-b-2 border-slate-100">
         <div className="flex items-center space-x-3">
-          <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center">
+          <div className="h-10 w-10 bg-slate-100 rounded-xl flex items-center justify-center">
             <span className="text-xl">🤖</span>
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">AI Hospital Analyst</h2>
-            <p className="text-xs text-gray-500">Powered by Llama 3.1</p>
+            <h2 className="text-lg font-semibold text-slate-900">AI Hospital Analyst</h2>
+            <p className="text-xs text-slate-500">Powered by Llama 3.1</p>
           </div>
         </div>
       </div>
 
       {/* Dataset Info */}
       {selectedDataset && (
-        <div className="p-4 bg-blue-50 border-b border-gray-200">
+        <div className="p-4 bg-slate-50 border-b-2 border-slate-100">
           <div className="text-sm">
-            <p className="font-medium text-blue-900">Current Dataset:</p>
+            <p className="font-medium text-slate-900">Current Dataset:</p>
             <p className="text-blue-700">{selectedDataset.name}</p>
-            <p className="text-blue-600 text-xs">{patientRecords.length} records</p>
+            <p className="text-slate-700 text-xs">{patientRecords.length} records</p>
           </div>
         </div>
       )}
 
       {/* Query Input */}
-      <div className="p-4 border-b border-gray-200">
+      <div className="p-4 border-b-2 border-slate-100">
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <textarea
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={selectedDataset ? "Ask me anything about your hospital data..." : "Please select a dataset first"}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+              className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400 resize-none text-sm"
               rows={3}
               disabled={!selectedDataset || loading}
             />
@@ -124,61 +124,67 @@ export default function AIAnalyst({ selectedDataset, patientRecords, onQuery }: 
           <button
             type="submit"
             disabled={!selectedDataset || !query.trim() || loading}
-            className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-4 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-700 font-semibold shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Analyzing...' : 'Analyze'}
           </button>
         </form>
       </div>
 
-      {/* Example Queries */}
-      {selectedDataset && (
-        <div className="p-4 border-b border-gray-200">
-          <h3 className="text-sm font-medium text-gray-700 mb-2">AI-Powered Suggestions:</h3>
+      {/* AI-Powered Suggestions (only when we have suggestions from API) */}
+      {selectedDataset && suggestions.length > 0 && (
+        <div className="p-4 border-b-2 border-slate-100">
+          <h3 className="text-sm font-medium text-slate-700 mb-2">AI-Powered Suggestions:</h3>
           <div className="space-y-1">
             {suggestions.slice(0, 3).map((suggestion, index) => (
               <button
                 key={index}
                 onClick={() => handleSuggestionClick(suggestion)}
-                className="w-full text-left text-xs text-gray-600 hover:text-purple-600 hover:bg-purple-50 px-2 py-1 rounded"
+                className="w-full text-left text-xs text-gray-600 hover:text-slate-800 hover:bg-slate-100 px-2 py-1 rounded"
               >
                 {suggestion}
               </button>
             ))}
           </div>
-          <button
-            onClick={() => setShowSuggestions(!showSuggestions)}
-            className="text-xs text-blue-600 hover:text-blue-700 mt-2"
-          >
-            {showSuggestions ? 'Hide Suggestions' : 'Show More Suggestions'}
-          </button>
-          
-          {showSuggestions && suggestions.length > 3 && (
-            <div className="mt-2 space-y-1">
-              {suggestions.slice(3).map((suggestion, index) => (
-                <button
-                  key={index + 3}
-                  onClick={() => handleSuggestionClick(suggestion)}
-                  className="w-full text-left text-xs text-gray-600 hover:text-purple-600 hover:bg-purple-50 px-2 py-1 rounded"
-                >
-                  {suggestion}
-                </button>
-              ))}
-            </div>
+          {suggestions.length > 3 && (
+            <>
+              <button
+                onClick={() => setShowSuggestions(!showSuggestions)}
+                className="text-xs text-slate-700 font-semibold hover:text-slate-900 mt-2"
+              >
+                {showSuggestions ? 'Hide Suggestions' : 'Show More Suggestions'}
+              </button>
+              {showSuggestions && (
+                <div className="mt-2 space-y-1">
+                  {suggestions.slice(3).map((suggestion, index) => (
+                    <button
+                      key={index + 3}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      className="w-full text-left text-xs text-gray-600 hover:text-slate-800 hover:bg-slate-100 px-2 py-1 rounded"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
 
-      {/* Example Queries (Fallback) */}
-      {!selectedDataset && (
-        <div className="p-4 border-b border-gray-200">
-          <h3 className="text-sm font-medium text-gray-700 mb-2">Example Queries:</h3>
+      {/* Example Queries when no dataset or when suggestions are empty */}
+      {(!selectedDataset || suggestions.length === 0) && (
+        <div className="p-4 border-b-2 border-slate-100">
+          <h3 className="text-sm font-medium text-slate-700 mb-2">
+            {selectedDataset ? 'Example Queries:' : 'Example Queries (select a dataset to analyze):'}
+          </h3>
           <div className="space-y-1">
-            {exampleQueries.slice(0, 3).map((exampleQuery, index) => (
+            {exampleQueries.slice(0, 5).map((exampleQuery, index) => (
               <button
                 key={index}
                 onClick={() => handleExampleClick(exampleQuery)}
-                className="w-full text-left text-xs text-gray-600 hover:text-purple-600 hover:bg-purple-50 px-2 py-1 rounded"
+                disabled={!selectedDataset}
+                className="w-full text-left text-xs text-gray-600 hover:text-slate-800 hover:bg-slate-100 px-2 py-1 rounded disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {exampleQuery}
               </button>
@@ -191,7 +197,7 @@ export default function AIAnalyst({ selectedDataset, patientRecords, onQuery }: 
       <div className="flex-1 overflow-auto">
         {results && (
           <div className="p-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">Analysis Results:</h3>
+            <h3 className="text-sm font-medium text-slate-700 mb-3">Analysis Results:</h3>
             
             {results.error ? (
               <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">
@@ -199,10 +205,19 @@ export default function AIAnalyst({ selectedDataset, patientRecords, onQuery }: 
               </div>
             ) : (
               <div className="space-y-3">
+                {/* Interpretation (support both normalized and raw API shape) */}
+                {(results.interpretation ?? (results as Record<string, unknown>).aiAnalysis) && (
+                  <div className="bg-slate-50 rounded-xl p-3">
+                    <h4 className="text-xs font-medium text-blue-700 mb-2">Interpretation:</h4>
+                    <p className="text-xs text-slate-700">
+                      {(results.interpretation ?? (results as Record<string, unknown>).aiAnalysis) as string}
+                    </p>
+                  </div>
+                )}
                 {/* Data Results */}
-                {results.data && (
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <h4 className="text-xs font-medium text-gray-700 mb-2">Data:</h4>
+                {(results.data ?? (results as Record<string, unknown>).statisticalResults ?? (results as Record<string, unknown>).metrics) && (
+                  <div className="bg-slate-50 rounded-xl p-3">
+                    <h4 className="text-xs font-medium text-slate-700 mb-2">Data:</h4>
                     <pre className="text-xs text-gray-600 whitespace-pre-wrap overflow-auto max-h-32">
                       {typeof results.data === 'object' ? 
                         JSON.stringify(results.data, null, 2) : 
@@ -213,15 +228,26 @@ export default function AIAnalyst({ selectedDataset, patientRecords, onQuery }: 
 
                 {/* Interpretation */}
                 {results.interpretation && (
-                  <div className="bg-blue-50 rounded-lg p-3">
+                  <div className="bg-slate-50 rounded-xl p-3">
                     <h4 className="text-xs font-medium text-blue-700 mb-2">Interpretation:</h4>
-                    <p className="text-xs text-blue-600">{results.interpretation}</p>
+                    <p className="text-xs text-slate-700">{results.interpretation}</p>
                   </div>
                 )}
 
+                {/* Insights (raw API) */}
+                {Array.isArray((results as Record<string, unknown>).insights) && ((results as Record<string, unknown>).insights as string[]).length > 0 && (
+                  <div className="bg-slate-50 rounded-xl p-3">
+                    <h4 className="text-xs font-medium text-slate-700 mb-2">Insights:</h4>
+                    <ul className="text-xs text-slate-600 space-y-1">
+                      {((results as Record<string, unknown>).insights as string[]).map((insight: string, idx: number) => (
+                        <li key={idx}>• {insight}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {/* Recommendations */}
                 {results.recommendations && results.recommendations.length > 0 && (
-                  <div className="bg-yellow-50 rounded-lg p-3">
+                  <div className="bg-yellow-50 rounded-xl p-3">
                     <h4 className="text-xs font-medium text-yellow-700 mb-2">Recommendations:</h4>
                     <ul className="text-xs text-yellow-600 space-y-1">
                       {results.recommendations.map((rec: string, index: number) => (
@@ -233,7 +259,7 @@ export default function AIAnalyst({ selectedDataset, patientRecords, onQuery }: 
 
                 {/* Analysis Type */}
                 {results.analysisType && (
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-slate-500">
                     Analysis Type: <span className="font-medium">{results.analysisType}</span>
                   </div>
                 )}
@@ -244,13 +270,13 @@ export default function AIAnalyst({ selectedDataset, patientRecords, onQuery }: 
 
         {/* Query History */}
         {history.length > 0 && (
-          <div className="p-4 border-t border-gray-200">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">Recent Queries:</h3>
+          <div className="p-4 border-t border-slate-200">
+            <h3 className="text-sm font-medium text-slate-700 mb-3">Recent Queries:</h3>
             <div className="space-y-2">
               {history.map((item, index) => (
-                <div key={index} className="bg-gray-50 rounded-lg p-2">
-                  <p className="text-xs font-medium text-gray-700">{item.query}</p>
-                  <p className="text-xs text-gray-500">{item.timestamp.toLocaleTimeString()}</p>
+                <div key={index} className="bg-slate-50 rounded-xl p-2">
+                  <p className="text-xs font-medium text-slate-700">{item.query}</p>
+                  <p className="text-xs text-slate-500">{item.timestamp.toLocaleTimeString()}</p>
                 </div>
               ))}
             </div>
@@ -259,8 +285,8 @@ export default function AIAnalyst({ selectedDataset, patientRecords, onQuery }: 
       </div>
 
       {/* Capabilities Info */}
-      <div className="p-4 border-t border-gray-200 bg-gray-50">
-        <h3 className="text-xs font-medium text-gray-700 mb-2">AI Capabilities:</h3>
+      <div className="p-4 border-t border-slate-200 bg-slate-50">
+        <h3 className="text-xs font-medium text-slate-700 mb-2">AI Capabilities:</h3>
         <div className="space-y-1 text-xs text-gray-600">
           <div>• Descriptive statistics</div>
           <div>• Trend analysis</div>

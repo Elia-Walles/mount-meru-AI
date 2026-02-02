@@ -2,16 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { dbAdapter } from '@/lib/database-adapter';
 import { emailService } from '@/lib/email-service';
 
-// Try to import bcryptjs, but fall back to stub if not available
-let bcrypt: any;
-try {
-  bcrypt = require('bcryptjs');
-} catch (error) {
-  console.log('Bcryptjs not available, using stub');
-  bcrypt = require('../../../lib/bcrypt-stub');
-}
-
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 
 interface ResetRequest {
   email: string;
@@ -45,12 +37,11 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Generate reset token
     const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
+    const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour
 
-    // Store reset token (you'll need to extend the database schema)
-    // For now, we'll send the reset email
+    await dbAdapter.createResetToken(email, resetToken, resetTokenExpiry);
+
     try {
       await emailService.sendPasswordResetEmail(email, resetToken, user.name);
     } catch (emailError) {
@@ -81,34 +72,36 @@ export async function PUT(request: NextRequest) {
     const { token, newPassword }: NewPasswordRequest = await request.json();
 
     if (!token || !newPassword) {
-      return NextResponse.json({
-        success: false,
-        message: 'Token and new password are required'
-      }, { status: 400 });
+      return NextResponse.json(
+        { success: false, message: 'Token and new password are required' },
+        { status: 400 }
+      );
+    }
+
+    if (newPassword.length < 8) {
+      return NextResponse.json(
+        { success: false, message: 'Password must be at least 8 characters' },
+        { status: 400 }
+      );
     }
 
     await dbAdapter.initialize();
 
-    // Verify token and get user (you'll need to extend the database schema)
-    // For now, we'll simulate token verification
-    const user = null; // This would come from database lookup by token
-
-    if (!user) {
-      return NextResponse.json({
-        success: false,
-        message: 'Invalid or expired reset token'
-      }, { status: 400 });
+    const email = await dbAdapter.getEmailByResetToken(token);
+    if (!email) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid or expired reset token' },
+        { status: 400 }
+      );
     }
 
-    // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 12);
-
-    // Update user password (you'll need to extend the database schema)
-    // For now, we'll return success
+    await dbAdapter.updateUserPassword(email, hashedPassword);
+    await dbAdapter.deleteResetToken(token);
 
     return NextResponse.json({
       success: true,
-      message: 'Password has been reset successfully. You can now log in with your new password.'
+      message: 'Password has been reset successfully. You can now log in with your new password.',
     });
 
   } catch (error) {

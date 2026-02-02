@@ -1,7 +1,7 @@
 // Analytics Engine for Mount Meru AI Hospital Analytics Platform
 // Core analytics capabilities including epidemiological, statistical, and surveillance analysis
 
-import { PatientRecord, AnalyticsResult } from './mock-database';
+import { PatientRecord, AnalyticsResult } from './types';
 
 export interface AnalysisQuery {
   type: 'descriptive' | 'trend' | 'epidemiological' | 'statistical' | 'surveillance' | 'forecasting';

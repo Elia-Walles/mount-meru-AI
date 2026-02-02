@@ -15,6 +15,7 @@ interface EmailOptions {
   subject: string;
   html: string;
   text?: string;
+  from?: string;
 }
 
 interface User {
@@ -31,19 +32,38 @@ interface User {
   updatedAt: Date;
 }
 
+// Email configuration from environment (.env)
+const EMAIL_CONFIG = {
+  host: process.env.EMAIL_SERVER_HOST ?? 'smtp.gmail.com',
+  port: parseInt(process.env.EMAIL_SERVER_PORT ?? '587', 10),
+  secure: false, // port 587 uses STARTTLS
+  auth: {
+    user: process.env.EMAIL_SERVER_USER ?? '',
+    pass: process.env.EMAIL_SERVER_PASSWORD ?? '',
+  },
+};
+const EMAIL_FROM = process.env.EMAIL_FROM ?? 'noreply@tie-ai.com';
+
+// Base URL for links in emails (verification, password reset)
+const APP_BASE_URL =
+  process.env.NEXTAUTH_URL ??
+  process.env.NEXT_PUBLIC_APP_URL ??
+  process.env.NEXT_PUBLIC_URL ??
+  'http://localhost:3000';
+
 export class EmailService {
   private transporter: any;
 
   constructor() {
-    this.transporter = nodemailer.createTransport ? nodemailer.createTransport({
-      host: process.env.EMAIL_SERVER_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.EMAIL_SERVER_PORT || '587'),
-      secure: true,
-      auth: {
-        user: process.env.EMAIL_SERVER_USER || 'tieai.service@gmail.com',
-        pass: process.env.EMAIL_SERVER_PASSWORD || 'agud bcjt kocl kkhq',
-      },
-    }) : null;
+    this.transporter =
+      nodemailer.createTransport &&
+      EMAIL_CONFIG.auth.user &&
+      EMAIL_CONFIG.auth.pass
+        ? nodemailer.createTransport(EMAIL_CONFIG)
+        : null;
+    if (!this.transporter && (EMAIL_CONFIG.auth.user || EMAIL_CONFIG.auth.pass)) {
+      console.warn('Email: configure EMAIL_SERVER_USER and EMAIL_SERVER_PASSWORD in .env');
+    }
   }
 
   async sendEmail(options: EmailOptions): Promise<boolean> {
@@ -54,8 +74,11 @@ export class EmailService {
       }
 
       const mailOptions = {
-        from: process.env.EMAIL_FROM || 'noreply@tie-ai.com',
-        ...options,
+        from: options.from ?? EMAIL_FROM,
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
+        text: options.text,
       };
 
       const info = await this.transporter.sendMail(mailOptions);
@@ -68,7 +91,7 @@ export class EmailService {
   }
 
   async sendVerificationEmail(email: string, verificationToken: string, userName: string): Promise<boolean> {
-    const verificationUrl = `${process.env.NEXT_PUBLIC_URL}/auth/verify?token=${verificationToken}`;
+    const verificationUrl = `${APP_BASE_URL}/auth/verify?token=${verificationToken}`;
     
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
@@ -115,12 +138,12 @@ export class EmailService {
   }
 
   async sendPasswordResetEmail(email: string, resetToken: string, userName: string): Promise<boolean> {
-    const resetUrl = `${process.env.NEXT_PUBLIC_URL}/auth/reset-password?token=${resetToken}`;
+    const resetUrl = `${APP_BASE_URL}/auth/reset-password?token=${resetToken}`;
     
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
         <div style="background-color: #dc3545; color: white; padding: 20px; border-radius: 8px 8px 0; text-align: center;">
-          <h1 style="Password Reset Request</h1>
+          <h1 style="margin: 0;">Password Reset Request</h1>
           <p style="margin: 10px 0;">Hello ${userName},</p>
         </div>
         
@@ -172,7 +195,7 @@ export class EmailService {
         <div style="background-color: white; padding: 20px; border-radius: 8px;">
           <h2 style="color: #333; margin-bottom: 15px;">Account Details</h2>
           <ul style="color: #666; line-height: 1.6;">
-            <li><strong>Role:</strong> ${user.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()}</li>
+            <li><strong>Role:</strong> ${user.role.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</li>
             <li><strong>Email:</strong> ${user.email}</li>
             <li><strong>Department:</strong> ${user.department || 'Not assigned'}</li>
             <li><strong>Status:</strong> ${user.isActive ? 'Active' : 'Inactive'}</li>

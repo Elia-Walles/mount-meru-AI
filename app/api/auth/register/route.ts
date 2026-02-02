@@ -2,16 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { dbAdapter } from '@/lib/database-adapter';
 import { emailService } from '@/lib/email-service';
 
-// Try to import bcryptjs, but fall back to stub if not available
-let bcrypt: any;
-try {
-  bcrypt = require('bcryptjs');
-} catch (error) {
-  console.log('Bcryptjs not available, using stub');
-  bcrypt = require('../../lib/bcrypt-stub');
-}
-
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 
 interface RegisterRequest {
   email: string;
@@ -45,28 +37,27 @@ export async function POST(request: NextRequest) {
       }, { status: 409 });
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 12);
-
     // Generate verification token
     const verificationToken = crypto.randomBytes(32).toString('hex');
 
-    // Create user
+    const hashedPassword = await bcrypt.hash(password, 12);
+
     const newUser = await dbAdapter.createUser({
       email,
       name,
       role: role as any,
       department,
-      isActive: false // User needs to verify email first
+      isActive: false,
+      passwordHash: hashedPassword,
     });
 
-    // Store verification token and hashed password (you'll need to extend the database schema)
-    // For now, we'll send the verification email
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    await dbAdapter.createVerificationToken(email, verificationToken, expiresAt);
+
     try {
       await emailService.sendVerificationEmail(email, verificationToken, name);
     } catch (emailError) {
       console.error('Failed to send verification email:', emailError);
-      // Continue even if email fails
     }
 
     return NextResponse.json({

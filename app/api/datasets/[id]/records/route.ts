@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbAdapter } from '@/lib/database-adapter';
+import type { PatientRecord } from '@/lib/types';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Initialize database if not already done
     await dbAdapter.initialize();
-    
-    const records = await dbAdapter.getPatientRecords(params.id);
+    const { id } = await params;
+    const records = await dbAdapter.getPatientRecords(id);
     
     return NextResponse.json({ 
       success: true, 
@@ -26,15 +26,15 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const records = await request.json();
-    
-    // Initialize database if not already done
+    const body = await request.json();
     await dbAdapter.initialize();
-    
-    const addedRecords = await dbAdapter.addPatientRecords(records);
+    const { id } = await params;
+    const records = (Array.isArray(body) ? body : []) as Omit<PatientRecord, 'id'>[];
+    const recordsWithDatasetId = records.map((r) => ({ ...r, datasetId: r.datasetId ?? id }));
+    const addedRecords = await dbAdapter.addPatientRecords(recordsWithDatasetId);
     
     return NextResponse.json({ 
       success: true, 

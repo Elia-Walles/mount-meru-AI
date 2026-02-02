@@ -26,12 +26,25 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/** Resolve a valid user id for analytics_results.generated_by (FK to users.id). */
+async function resolveGeneratedBy(generatedBy: string | undefined): Promise<string> {
+  if (generatedBy) {
+    const user = await dbAdapter.getUserById(generatedBy);
+    if (user) return user.id;
+  }
+  const users = await dbAdapter.getUsers();
+  if (users.length > 0) return users[0].id;
+  throw new Error('No user found in database. Create at least one user to save analytics.');
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { datasetId, query } = await request.json();
+    const { datasetId, query, generatedBy } = await request.json();
     
     // Initialize database if not already done
     await dbAdapter.initialize();
+    
+    const userId = await resolveGeneratedBy(generatedBy);
     
     // Get patient records for analysis
     const patientRecords = await dbAdapter.getPatientRecords(datasetId);
@@ -107,7 +120,7 @@ export async function POST(request: NextRequest) {
         },
         interpretation: aiAnalysis.analysis,
         recommendations: aiAnalysis.recommendations,
-        generatedBy: 'system' // This should come from authenticated user
+        generatedBy: userId
       });
 
       return NextResponse.json({ 
@@ -184,7 +197,7 @@ export async function POST(request: NextRequest) {
         results,
         interpretation,
         recommendations,
-        generatedBy: 'system'
+        generatedBy: userId
       });
 
       return NextResponse.json({ 
