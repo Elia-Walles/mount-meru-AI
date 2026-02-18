@@ -20,11 +20,12 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [patientRecords, setPatientRecords] = useState<PatientRecord[]>([]);
   const [analyticsResults, setAnalyticsResults] = useState<AnalyticsResult[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeView, setActiveView] = useState<'home' | 'datasets' | 'analytics' | 'reports' | 'settings' | 'trash'>('home');
+  const [activeView, setActiveView] = useState<'home' | 'datasets' | 'analytics' | 'reports' | 'settings' | 'trash' | 'ai-analyst'>('home');
   const [departmentFilter, setDepartmentFilter] = useState<string>('');
   const [showNewDatasetModal, setShowNewDatasetModal] = useState(false);
   const [trashDatasets, setTrashDatasets] = useState<Dataset[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
 
   useEffect(() => {
     loadDashboardData();
@@ -136,73 +137,138 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     );
   }
 
+  const handleMobileNavigate = () => {
+    setIsSidebarCollapsed(true);
+  };
+
   return (
-    <div className="flex h-screen bg-slate-100">
+    <div className="flex h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Sidebar */}
-      <Sidebar 
-        user={user}
-        activeView={activeView}
-        onViewChange={setActiveView}
-        onLogout={onLogout}
-        departmentFilter={departmentFilter}
-        onDepartmentSelect={(deptId) => {
-          setDepartmentFilter(deptId);
-          setActiveView('datasets');
-        }}
-        datasetCountByDepartment={datasets.reduce((acc, d) => {
-          acc[d.department] = (acc[d.department] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>)}
-        onAddFolder={() => setShowNewDatasetModal(true)}
-      />
+      <div className="hidden md:flex">
+        <Sidebar 
+          user={user}
+          activeView={activeView}
+          onViewChange={setActiveView}
+          onLogout={onLogout}
+          departmentFilter={departmentFilter}
+          onDepartmentSelect={(deptId) => {
+            setDepartmentFilter(deptId);
+            setActiveView('datasets');
+            handleMobileNavigate();
+          }}
+          datasetCountByDepartment={datasets.reduce((acc, d) => {
+            acc[d.department] = (acc[d.department] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>)}
+          onAddFolder={() => {
+            setShowNewDatasetModal(true);
+            handleMobileNavigate();
+          }}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          onMobileNavigate={handleMobileNavigate}
+        />
+      </div>
+
+      {/* Mobile Menu Toggle */}
+      <div className="md:hidden fixed top-4 left-4 z-50">
+        <button
+          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          className="p-3 bg-white rounded-lg shadow-lg border border-slate-200"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Mobile Sidebar Overlay */}
+      {!isSidebarCollapsed && (
+        <div className="md:hidden fixed inset-0 z-40 flex">
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50" 
+            onClick={() => setIsSidebarCollapsed(true)}
+          />
+          <div className="relative flex flex-col w-64 h-full bg-white">
+            <Sidebar 
+              user={user}
+              activeView={activeView}
+              onViewChange={setActiveView}
+              onLogout={onLogout}
+              departmentFilter={departmentFilter}
+              onDepartmentSelect={(deptId) => {
+                setDepartmentFilter(deptId);
+                setActiveView('datasets');
+                handleMobileNavigate();
+              }}
+              datasetCountByDepartment={datasets.reduce((acc, d) => {
+                acc[d.department] = (acc[d.department] || 0) + 1;
+                return acc;
+              }, {} as Record<string, number>)}
+              onAddFolder={() => {
+                setShowNewDatasetModal(true);
+                handleMobileNavigate();
+              }}
+              isCollapsed={false}
+              onToggleCollapse={() => setIsSidebarCollapsed(true)}
+              onMobileNavigate={handleMobileNavigate}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area */}
-      <div className="flex-1 flex">
-        <MainContent
-          activeView={activeView}
-          datasets={datasets}
-          selectedDataset={selectedDataset}
-          patientRecords={patientRecords}
-          analyticsResults={analyticsResults}
-          onDatasetSelect={handleDatasetSelect}
-          user={user}
-          departmentFilter={departmentFilter}
-          onDepartmentFilterChange={setDepartmentFilter}
-          onOpenNewDataset={() => setShowNewDatasetModal(true)}
-          onDatasetCreated={handleDatasetCreated}
-          trashDatasets={trashDatasets}
-          onRestore={async (id) => {
-            await apiService.restoreDataset(id, user.id);
-            setTrashDatasets(prev => prev.filter(d => d.id !== id));
-            loadDashboardData();
-          }}
-          onTrashRefresh={() => apiService.getTrashDatasets(user.id).then(setTrashDatasets)}
-          reports={reports}
-          onGenerateReport={async (params) => {
-            const report = await apiService.generateReport({ ...params, generatedBy: user.id });
-            if (report) {
-              setReports(prev => [report, ...prev]);
-              return report;
-            }
-            return null;
-          }}
-          onReportsRefresh={() => apiService.getReports(user.id).then(setReports)}
-          onMoveToTrash={async (id) => {
-            await apiService.softDeleteDataset(id, user.id);
-            if (selectedDataset?.id === id) {
-              setSelectedDataset(null);
-              setPatientRecords([]);
-            }
-            loadDashboardData();
-          }}
-        />
-
-        {/* AI Analyst Panel */}
-        <AIAnalyst
-          selectedDataset={selectedDataset}
-          patientRecords={patientRecords}
-          onQuery={handleAIQuery}
-        />
+      <div className="flex-1 md:ml-0 overflow-hidden">
+        {activeView === 'ai-analyst' ? (
+          <div className="h-full overflow-y-auto">
+            <AIAnalyst
+              selectedDataset={selectedDataset}
+              patientRecords={patientRecords}
+              onQuery={handleAIQuery}
+            />
+          </div>
+        ) : (
+          <div className="h-full">
+            <MainContent
+              activeView={activeView}
+              datasets={datasets}
+              selectedDataset={selectedDataset}
+              patientRecords={patientRecords}
+              analyticsResults={analyticsResults}
+              onDatasetSelect={handleDatasetSelect}
+              user={user}
+              departmentFilter={departmentFilter}
+              onDepartmentFilterChange={setDepartmentFilter}
+              onOpenNewDataset={() => setShowNewDatasetModal(true)}
+              onDatasetCreated={handleDatasetCreated}
+              trashDatasets={trashDatasets}
+              onRestore={async (id) => {
+                await apiService.restoreDataset(id, user.id);
+                setTrashDatasets(prev => prev.filter(d => d.id !== id));
+                loadDashboardData();
+              }}
+              onTrashRefresh={() => apiService.getTrashDatasets(user.id).then(setTrashDatasets)}
+              reports={reports}
+              onGenerateReport={async (params) => {
+                const report = await apiService.generateReport({ ...params, generatedBy: user.id });
+                if (report) {
+                  setReports(prev => [report, ...prev]);
+                  return report;
+                }
+                return null;
+              }}
+              onReportsRefresh={() => apiService.getReports(user.id).then(setReports)}
+              onMoveToTrash={async (id) => {
+                await apiService.softDeleteDataset(id, user.id);
+                if (selectedDataset?.id === id) {
+                  setSelectedDataset(null);
+                  setPatientRecords([]);
+                }
+                loadDashboardData();
+              }}
+            />
+          </div>
+        )}
       </div>
 
       <NewDatasetModal

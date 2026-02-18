@@ -11,11 +11,21 @@ export interface User {
   lastLogin: Date | null;
 }
 
+export interface Department {
+  id: string;
+  name: string;
+  description?: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface Dataset {
   id: string;
   name: string;
   description: string;
-  department: 'opd' | 'ipd' | 'laboratory' | 'pharmacy' | 'rch' | 'theatre' | 'mortuary';
+  department: string;
   fileType: 'excel' | 'csv' | 'tsv' | 'pdf' | 'image' | 'bulk';
   uploadedBy: string;
   uploadedAt: Date;

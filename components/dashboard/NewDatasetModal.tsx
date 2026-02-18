@@ -2,17 +2,8 @@
 
 import { useState, useRef } from 'react';
 import { apiService } from '@/lib/api-service';
+import { useDepartments } from '@/hooks/useDepartments';
 import type { Dataset } from '@/lib/api-service';
-
-const DEPARTMENTS = [
-  { id: 'opd', label: 'OPD' },
-  { id: 'ipd', label: 'IPD' },
-  { id: 'laboratory', label: 'Laboratory' },
-  { id: 'pharmacy', label: 'Pharmacy' },
-  { id: 'rch', label: 'RCH' },
-  { id: 'theatre', label: 'Theatre' },
-  { id: 'mortuary', label: 'Mortuary' },
-] as const;
 
 const ACCEPT = '.xlsx,.xls,.csv,.tsv';
 const MAX_SIZE_MB = 10;
@@ -25,8 +16,9 @@ interface NewDatasetModalProps {
 }
 
 export default function NewDatasetModal({ isOpen, onClose, onSuccess, userId }: NewDatasetModalProps) {
+  const { departments, loading: departmentsLoading } = useDepartments();
   const [file, setFile] = useState<File | null>(null);
-  const [department, setDepartment] = useState<string>('opd');
+  const [department, setDepartment] = useState<string>('');
   const [name, setName] = useState('');
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
@@ -69,7 +61,7 @@ export default function NewDatasetModal({ isOpen, onClose, onSuccess, userId }: 
         onClose();
         setFile(null);
         setName('');
-        setDepartment('opd');
+        setDepartment(departments[0]?.id || '');
       } else {
         setError(result.message || 'Upload failed');
       }
@@ -84,6 +76,7 @@ export default function NewDatasetModal({ isOpen, onClose, onSuccess, userId }: 
     if (!uploading) {
       setFile(null);
       setName('');
+      setDepartment(departments[0]?.id || '');
       setError('');
       onClose();
     }
@@ -129,8 +122,8 @@ export default function NewDatasetModal({ isOpen, onClose, onSuccess, userId }: 
               onChange={(e) => setDepartment(e.target.value)}
               className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
             >
-              {DEPARTMENTS.map((d) => (
-                <option key={d.id} value={d.id}>{d.label}</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
               ))}
             </select>
           </div>

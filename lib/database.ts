@@ -295,8 +295,13 @@ export async function initializeDatabase(): Promise<void> {
       );
       console.log('✅ Added password_hash column to users');
     } catch (e: unknown) {
-      const msg = e && typeof e === 'object' && 'code' in e ? (e as { code: string }).code : '';
-      if (msg !== 'ER_DUP_FIELDNAME') throw e;
+      const error = e as any;
+      const errorCode = error?.code || '';
+      if (errorCode !== 'ER_DUP_FIELDNAME' && errorCode !== '42S21') {
+        console.error('❌ Failed to add password_hash column:', error);
+        throw e;
+      }
+      console.log('ℹ️ password_hash column already exists');
     }
 
     // Add deleted_at to datasets for soft delete / Trash
@@ -306,9 +311,47 @@ export async function initializeDatabase(): Promise<void> {
       );
       console.log('✅ Added deleted_at column to datasets');
     } catch (e: unknown) {
-      const msg = e && typeof e === 'object' && 'code' in e ? (e as { code: string }).code : '';
-      if (msg !== 'ER_DUP_FIELDNAME') throw e;
+      const error = e as any;
+      const errorCode = error?.code || '';
+      if (errorCode !== 'ER_DUP_FIELDNAME' && errorCode !== '42S21') {
+        console.error('❌ Failed to add deleted_at column:', error);
+        throw e;
+      }
+      console.log('ℹ️ deleted_at column already exists');
     }
+
+    // Create departments table for dynamic department management
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS departments (
+        id VARCHAR(50) PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        description TEXT,
+        is_active BOOLEAN DEFAULT TRUE,
+        sort_order INT DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_departments_active (is_active),
+        INDEX idx_departments_sort (sort_order)
+      )
+    `);
+    console.log('✅ Created departments table');
+
+    // Insert default departments
+    await db.query(`
+      INSERT INTO departments (id, name, description, sort_order) VALUES
+      ('opd', 'OPD', 'Outpatient Department - General consultations and emergency services', 1),
+      ('ipd', 'IPD', 'Inpatient Department - Admitted patient care and ward management', 2),
+      ('laboratory', 'Laboratory', 'Laboratory Services - Diagnostic tests and medical investigations', 3),
+      ('pharmacy', 'Pharmacy', 'Pharmacy - Medication dispensing and pharmaceutical services', 4),
+      ('rch', 'RCH', 'Reproductive and Child Health - Maternal and child health services', 5),
+      ('theatre', 'Theatre', 'Operating Theatre - Surgical procedures and operations', 6),
+      ('mortuary', 'Mortuary', 'Mortuary Services - Post-mortem and mortuary management', 7)
+      ON DUPLICATE KEY UPDATE
+        name = VALUES(name),
+        description = VALUES(description),
+        sort_order = VALUES(sort_order)
+    `);
+    console.log('✅ Seeded default departments');
 
     console.log('✅ Database schema initialized successfully');
   } catch (error) {

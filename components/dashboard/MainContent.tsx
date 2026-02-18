@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { User, Dataset, PatientRecord, AnalyticsResult, Report } from '@/lib/api-service';
+import { useDepartments } from '@/hooks/useDepartments';
 
 /** Human-readable labels for common analytics keys */
 const RESULT_LABELS: Record<string, string> = {
@@ -147,6 +148,7 @@ export default function MainContent({
   onGenerateReport,
   onReportsRefresh
 }: MainContentProps) {
+  const { departments, loading: departmentsLoading } = useDepartments();
   const [searchTerm, setSearchTerm] = useState('');
   const [reportGenerating, setReportGenerating] = useState(false);
   const [reportTitle, setReportTitle] = useState('');
@@ -160,110 +162,175 @@ export default function MainContent({
   });
 
   const renderHomeView = () => (
-    <div className="flex-1 p-6 overflow-auto">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">Hospital Analytics Dashboard</h1>
-          <p className="text-gray-600 mt-2">Welcome back, {user.name}. Here's your hospital data overview.</p>
+    <div className="flex-1 flex flex-col h-full">
+      <div className="p-6 pb-0">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-slate-900 mb-2">
+              Welcome back, {user.name?.split(' ')[0] || 'User'}! 👋
+            </h1>
+            <p className="text-lg text-slate-600">
+              Here's what's happening with your hospital data today.
+            </p>
+          </div>
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white p-6 rounded-xl shadow-md border-2 border-slate-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Datasets</p>
+                  <p className="text-2xl font-bold text-slate-900">{datasets.length}</p>
+                </div>
+                <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <span className="text-xl">📊</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow-md border-2 border-slate-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Records</p>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {datasets.reduce((sum, d) => sum + (d.rowCount || 0), 0).toLocaleString()}
+                  </p>
+                </div>
+                <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
+                  <span className="text-xl">📋</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow-md border-2 border-slate-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Analyses Run</p>
+                  <p className="text-2xl font-bold text-slate-900">{analyticsResults.length}</p>
+                </div>
+                <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <span className="text-xl">📈</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow-md border-2 border-slate-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Departments</p>
+                  <p className="text-2xl font-bold text-slate-900">7</p>
+                </div>
+                <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                  <span className="text-xl">🏥</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-xl shadow-md border-2 border-slate-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Datasets</p>
-                <p className="text-2xl font-bold text-slate-900">{datasets.length}</p>
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-auto p-6 pt-0">
+        <div className="max-w-7xl mx-auto">
+          {/* Recent Activity */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Recent Datasets */}
+            <div className="bg-white rounded-xl shadow-md border-2 border-slate-200">
+              <div className="p-6 border-b border-slate-200">
+                <h2 className="text-lg font-semibold text-slate-900">Recent Datasets</h2>
               </div>
-              <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <span className="text-xl">📊</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-xl shadow-md border-2 border-slate-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Records</p>
-                <p className="text-2xl font-bold text-slate-900">{patientRecords.length.toLocaleString()}</p>
-              </div>
-              <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <span className="text-xl">📋</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-xl shadow-md border-2 border-slate-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Analyses Run</p>
-                <p className="text-2xl font-bold text-slate-900">{analyticsResults.length}</p>
-              </div>
-              <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <span className="text-xl">📈</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-xl shadow-md border-2 border-slate-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Departments</p>
-                <p className="text-2xl font-bold text-slate-900">7</p>
-              </div>
-              <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <span className="text-xl">🏥</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Recent Datasets */}
-          <div className="bg-white rounded-xl shadow-md border-2 border-slate-200">
-            <div className="p-6 border-b border-slate-200">
-              <h2 className="text-lg font-semibold text-slate-900">Recent Datasets</h2>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                {datasets.slice(0, 5).map((dataset) => (
-                  <div key={dataset.id} className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-slate-900">{dataset.name}</p>
-                      <p className="text-xs text-slate-500">{dataset.rowCount} records • {dataset.department}</p>
+              <div className="p-6">
+                {filteredDatasets.slice(0, 5).length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="h-12 w-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="text-xl">📊</span>
                     </div>
-                    <button
-                      onClick={() => onDatasetSelect(dataset)}
-                      className="text-xs text-slate-700 font-semibold hover:text-slate-900"
-                    >
-                      View
-                    </button>
+                    <p className="text-slate-600">No datasets yet</p>
+                    <p className="text-sm text-slate-500 mt-2">Create your first dataset to get started</p>
                   </div>
-                ))}
+                ) : (
+                  <div className="space-y-3">
+                    {filteredDatasets.slice(0, 5).map((dataset) => (
+                      <div
+                        key={dataset.id}
+                        onClick={() => onDatasetSelect(dataset)}
+                        className="p-4 border border-slate-200 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-slate-900 truncate">{dataset.name}</h4>
+                            <p className="text-sm text-slate-500">
+                              {dataset.rowCount || 0} records • {dataset.department}
+                            </p>
+                          </div>
+                          <span className="text-xs px-2 py-1 bg-slate-100 text-slate-700 rounded-lg capitalize">
+                            {dataset.department}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {filteredDatasets.length > 5 && (
+                  <button
+                    onClick={() => onDepartmentFilterChange?.('')}
+                    className="w-full mt-4 text-center text-sm text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    View all datasets →
+                  </button>
+                )}
               </div>
             </div>
-          </div>
 
-          {/* Recent Analyses */}
-          <div className="bg-white rounded-xl shadow-md border-2 border-slate-200">
-            <div className="p-6 border-b border-slate-200">
-              <h2 className="text-lg font-semibold text-slate-900">Recent Analyses</h2>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                {analyticsResults.slice(0, 5).map((result) => (
-                  <div key={result.id} className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-slate-900">{result.query}</p>
-                      <p className="text-xs text-slate-500">{result.analysisType} • {result.generatedAt.toLocaleDateString()}</p>
+            {/* Recent Analyses */}
+            <div className="bg-white rounded-xl shadow-md border-2 border-slate-200">
+              <div className="p-6 border-b border-slate-200">
+                <h2 className="text-lg font-semibold text-slate-900">Recent Analyses</h2>
+              </div>
+              <div className="p-6">
+                {analyticsResults.slice(0, 3).length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="h-12 w-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="text-xl">📈</span>
                     </div>
-                    <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded">
-                      Completed
-                    </span>
+                    <p className="text-slate-600">No analyses yet</p>
+                    <p className="text-sm text-slate-500 mt-2">Start analyzing your data to see insights</p>
                   </div>
-                ))}
+                ) : (
+                  <div className="space-y-4">
+                    {analyticsResults.slice(0, 3).map((result) => (
+                      <div key={result.id} className="border border-slate-200 rounded-xl p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-slate-900 truncate">{result.query}</h4>
+                            <p className="text-sm text-slate-500 mt-1">
+                              {result.generatedAt instanceof Date
+                                ? result.generatedAt.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+                                : new Date(String(result.generatedAt)).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="px-2.5 py-1 bg-slate-200 text-slate-700 text-xs font-medium rounded-lg capitalize">
+                              {String(result.analysisType).replace(/_/g, ' ')}
+                            </span>
+                            <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 text-xs font-medium rounded-lg">
+                              Completed
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {analyticsResults.length > 3 && (
+                  <button
+                    onClick={() => {/* Navigate to analytics */}}
+                    className="w-full mt-4 text-center text-sm text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    View all analyses →
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -273,238 +340,255 @@ export default function MainContent({
   );
 
   const renderDatasetsView = () => (
-    <div className="flex-1 p-6 overflow-auto">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">My Datasets</h1>
-            <p className="text-gray-600 mt-1">Manage and analyze your hospital datasets</p>
-          </div>
-          <button type="button" onClick={onOpenNewDataset} className="px-4 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-700 font-semibold shadow-md">
-            + New Dataset
-          </button>
-        </div>
-
-        {/* Search and Filter */}
-        <div className="bg-white p-4 rounded-xl shadow-md border-2 border-slate-200 mb-6">
-          <div className="flex items-center space-x-4">
-            <div className="flex-1">
-              <input
-                type="text"
-                placeholder="Search datasets..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
-              />
+    <div className="flex-1 flex flex-col h-full">
+      <div className="p-6 pb-0">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">My Datasets</h1>
+              <p className="text-gray-600 mt-1">Manage and analyze your hospital datasets</p>
             </div>
-            <select
-              value={departmentFilter}
-              onChange={(e) => onDepartmentFilterChange?.(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
-            >
-              <option value="">All Departments</option>
-              <option value="opd">OPD</option>
-              <option value="ipd">IPD</option>
-              <option value="laboratory">Laboratory</option>
-              <option value="pharmacy">Pharmacy</option>
-              <option value="rch">RCH</option>
-              <option value="theatre">Theatre</option>
-              <option value="mortuary">Mortuary</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Dataset Grid */}
-        {filteredDatasets.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-md border-2 border-slate-200 p-12 text-center">
-            <div className="h-16 w-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">📊</span>
-            </div>
-            <h3 className="text-lg font-medium text-slate-900 mb-2">
-              {datasets.length === 0 ? 'No datasets yet' : 'No datasets match your filters'}
-            </h3>
-            <p className="text-gray-600 mb-4">
-              {datasets.length === 0
-                ? 'Create a new dataset or import hospital data to get started.'
-                : 'Try changing the search or department filter.'}
-            </p>
-            <button
-              type="button"
-              onClick={() => onDepartmentFilterChange?.('')}
-              className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-medium"
-            >
-              Clear filters
+            <button type="button" onClick={onOpenNewDataset} className="px-4 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-700 font-semibold shadow-md">
+              + New Dataset
             </button>
           </div>
-        ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredDatasets.map((dataset) => (
-            <div
-              key={dataset.id}
-              className={`bg-white rounded-xl shadow-md border-2 border-slate-200 p-6 cursor-pointer transition-all hover:shadow-md ${
-                selectedDataset?.id === dataset.id ? 'ring-2 ring-blue-500' : ''
-              }`}
-              onClick={() => onDatasetSelect(dataset)}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <span className="text-lg">📊</span>
-                </div>
-                <span className={`px-2 py-1 text-xs rounded ${
-                  dataset.isProcessed ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                }`}>
-                  {dataset.isProcessed ? 'Processed' : 'Processing'}
-                </span>
+
+          {/* Search and Filter */}
+          <div className="bg-white p-4 rounded-xl shadow-md border-2 border-slate-200 mb-6">
+            <div className="flex items-center space-x-4">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  placeholder="Search datasets..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
+                />
               </div>
-              
-              <h3 className="font-semibold text-slate-900 mb-2">{dataset.name}</h3>
-              <p className="text-sm text-gray-600 mb-4">{dataset.description}</p>
-              
-              <div className="space-y-2 text-sm text-slate-500">
-                <div className="flex justify-between">
-                  <span>Department:</span>
-                  <span className="font-medium">{dataset.department.toUpperCase()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Records:</span>
-                  <span className="font-medium">{dataset.rowCount.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Type:</span>
-                  <span className="font-medium">{dataset.fileType}</span>
-                </div>
-              </div>
-              
-              <div className="mt-4 pt-4 border-t border-slate-200 flex items-center justify-between">
-                <div className="text-xs text-slate-500">
-                  <span>{dataset.uploadedAt.toLocaleDateString()}</span>
-                  <span className="ml-2">• {dataset.columns.length} columns</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); onMoveToTrash?.(dataset.id); }}
-                  className="text-xs font-medium text-slate-500 hover:text-red-600"
-                  title="Move to Trash"
-                >
-                  Trash
-                </button>
-              </div>
+              <select
+                value={departmentFilter}
+                onChange={(e) => onDepartmentFilterChange?.(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
+              >
+                <option value="">All Departments</option>
+                {departments.map((dept) => (
+                  <option key={dept.id} value={dept.id}>{dept.name}</option>
+                ))}
+              </select>
             </div>
-          ))}
+          </div>
         </div>
-        )}
+      </div>
+
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-auto p-6 pt-0">
+        <div className="max-w-7xl mx-auto">
+          {/* Dataset Grid */}
+          {filteredDatasets.length === 0 ? (
+            <div className="bg-white rounded-xl shadow-md border-2 border-slate-200 p-12 text-center">
+              <div className="h-16 w-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl">📊</span>
+              </div>
+              <h3 className="text-lg font-medium text-slate-900 mb-2">
+                {datasets.length === 0 ? 'No datasets yet' : 'No datasets match your filters'}
+              </h3>
+              <p className="text-gray-600 mb-4">
+                {datasets.length === 0
+                  ? 'Create a new dataset or import hospital data to get started.'
+                  : 'Try changing search or department filter.'}
+              </p>
+              <button
+                type="button"
+                onClick={() => onDepartmentFilterChange?.('')}
+                className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-medium"
+              >
+                Clear filters
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredDatasets.map((dataset) => (
+                <div
+                  key={dataset.id}
+                  className={`bg-white rounded-xl shadow-md border-2 border-slate-200 p-6 cursor-pointer transition-all hover:shadow-md ${
+                    selectedDataset?.id === dataset.id ? 'ring-2 ring-blue-500' : ''
+                  }`}
+                  onClick={() => onDatasetSelect(dataset)}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <span className="text-lg">📊</span>
+                    </div>
+                    <span className={`px-2 py-1 text-xs rounded ${
+                      dataset.isProcessed ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {dataset.isProcessed ? 'Processed' : 'Processing'}
+                    </span>
+                  </div>
+                  
+                  <h3 className="font-semibold text-slate-900 mb-2">{dataset.name}</h3>
+                  <p className="text-sm text-gray-600 mb-4">{dataset.description}</p>
+                  
+                  <div className="space-y-2 text-sm text-slate-500">
+                    <div className="flex justify-between">
+                      <span>Department:</span>
+                      <span className="font-medium">{dataset.department.toUpperCase()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Records:</span>
+                      <span className="font-medium">{dataset.rowCount.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Type:</span>
+                      <span className="font-medium">{dataset.fileType}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-4 pt-4 border-t border-slate-200 flex items-center justify-between">
+                    <div className="text-xs text-slate-500">
+                      <span>{dataset.uploadedAt.toLocaleDateString()}</span>
+                      <span className="ml-2">• {dataset.columns.length} columns</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onMoveToTrash?.(dataset.id); }}
+                      className="text-xs font-medium text-slate-500 hover:text-red-600"
+                      title="Move to Trash"
+                    >
+                      Trash
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 
   const renderAnalyticsView = () => (
-    <div className="flex-1 p-6 overflow-auto">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-2xl font-bold text-slate-900 mb-6">Analytics Results</h1>
-        
-        {analyticsResults.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-md border-2 border-slate-200 p-12 text-center">
-            <div className="h-16 w-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">📈</span>
-            </div>
-            <h3 className="text-lg font-medium text-slate-900 mb-2">No analyses yet</h3>
-            <p className="text-gray-600">Start by asking the AI Analyst to analyze your data</p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {analyticsResults.map((result) => (
-              <div key={result.id} className="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-slate-900 leading-snug">{result.query}</h3>
-                      <p className="text-sm text-slate-500 mt-1.5">
-                        {result.generatedAt instanceof Date
-                          ? result.generatedAt.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-                          : new Date(String(result.generatedAt)).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="px-2.5 py-1 bg-slate-200 text-slate-700 text-xs font-medium rounded-lg capitalize">
-                        {String(result.analysisType).replace(/_/g, ' ')}
-                      </span>
-                      <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 text-xs font-medium rounded-lg">
-                        Completed
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="p-6">
-                
-                <div className="bg-slate-50/80 rounded-xl p-5 mb-4 border border-slate-200">
-                  <h4 className="font-semibold text-slate-800 mb-3">Key metrics & results</h4>
-                  <FormattedResults data={result.results} />
-                </div>
-                
-                {result.interpretation && (
-                  <div className="bg-blue-50/60 rounded-xl p-5 mb-4 border border-blue-100">
-                    <h4 className="font-semibold text-blue-900 mb-2">Interpretation</h4>
-                    <p className="text-sm text-slate-800 leading-relaxed">{result.interpretation}</p>
-                  </div>
-                )}
-                
-                {Array.isArray(result.recommendations) && result.recommendations.length > 0 && (
-                  <div className="bg-amber-50/80 rounded-xl p-5 border border-amber-100">
-                    <h4 className="font-semibold text-amber-900 mb-2">Recommendations</h4>
-                    <ul className="space-y-2">
-                      {result.recommendations.map((rec, index) => (
-                        <li key={index} className="flex gap-2 text-sm text-amber-900">
-                          <span className="text-amber-600 font-medium">{index + 1}.</span>
-                          <span>{rec}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                </div>
+    <div className="flex-1 flex flex-col h-full">
+      <div className="p-6 pb-0">
+        <div className="max-w-7xl mx-auto">
+          <h1 className="text-2xl font-bold text-slate-900 mb-6">Analytics Results</h1>
+        </div>
+      </div>
+      
+      <div className="flex-1 overflow-auto p-6 pt-0">
+        <div className="max-w-7xl mx-auto">
+          {analyticsResults.length === 0 ? (
+            <div className="bg-white rounded-xl shadow-md border-2 border-slate-200 p-12 text-center">
+              <div className="h-16 w-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl">📈</span>
               </div>
-            ))}
-          </div>
-        )}
+              <h3 className="text-lg font-medium text-slate-900 mb-2">No analyses yet</h3>
+              <p className="text-gray-600">Start by asking the AI Analyst to analyze your data</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {analyticsResults.map((result) => (
+                <div key={result.id} className="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
+                  <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold text-slate-900 leading-snug">{result.query}</h3>
+                        <p className="text-sm text-slate-500 mt-1.5">
+                          {result.generatedAt instanceof Date
+                            ? result.generatedAt.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+                            : new Date(String(result.generatedAt)).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="px-2.5 py-1 bg-slate-200 text-slate-700 text-xs font-medium rounded-lg capitalize">
+                          {String(result.analysisType).replace(/_/g, ' ')}
+                        </span>
+                        <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 text-xs font-medium rounded-lg">
+                          Completed
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-6">
+                  
+                  <div className="bg-slate-50/80 rounded-xl p-5 mb-4 border border-slate-200">
+                    <h4 className="font-semibold text-slate-800 mb-3">Key metrics & results</h4>
+                    <FormattedResults data={result.results} />
+                  </div>
+                  
+                  {result.interpretation && (
+                    <div className="bg-blue-50/60 rounded-xl p-5 mb-4 border border-blue-100">
+                      <h4 className="font-semibold text-blue-900 mb-2">Interpretation</h4>
+                      <p className="text-sm text-slate-800 leading-relaxed">{result.interpretation}</p>
+                    </div>
+                  )}
+                  
+                  {Array.isArray(result.recommendations) && result.recommendations.length > 0 && (
+                    <div className="bg-amber-50/80 rounded-xl p-5 border border-amber-100">
+                      <h4 className="font-semibold text-amber-900 mb-2">Recommendations</h4>
+                      <ul className="space-y-2">
+                        {result.recommendations.map((rec, index) => (
+                          <li key={index} className="flex gap-2 text-sm text-amber-900">
+                            <span className="text-amber-600 font-medium">{index + 1}.</span>
+                            <span>{rec}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 
   const renderTrashView = () => (
-    <div className="flex-1 p-6 overflow-auto">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-2xl font-bold text-slate-900 mb-2">Trash</h1>
-        <p className="text-gray-600 mb-6">Restore or permanently remove datasets.</p>
-        {trashDatasets.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-md border-2 border-slate-200 p-12 text-center">
-            <div className="h-16 w-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">🗑️</span>
-            </div>
-            <h3 className="text-lg font-medium text-slate-900 mb-2">Trash is empty</h3>
-            <p className="text-gray-600">Deleted datasets will appear here.</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {trashDatasets.map((dataset) => (
-              <div key={dataset.id} className="bg-white rounded-xl shadow-md border-2 border-slate-200 p-6 flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-slate-900">{dataset.name}</h3>
-                  <p className="text-sm text-slate-500">{dataset.rowCount} records • {dataset.department}</p>
-                </div>
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => onRestore?.(dataset.id)}
-                    className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-semibold hover:bg-slate-200"
-                  >
-                    Restore
-                  </button>
-                </div>
+    <div className="flex-1 flex flex-col h-full">
+      <div className="p-6 pb-0">
+        <div className="max-w-7xl mx-auto">
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">Trash</h1>
+          <p className="text-gray-600 mb-6">Restore or permanently remove datasets.</p>
+        </div>
+      </div>
+
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-auto p-6 pt-0">
+        <div className="max-w-7xl mx-auto">
+          {trashDatasets.length === 0 ? (
+            <div className="bg-white rounded-xl shadow-md border-2 border-slate-200 p-12 text-center">
+              <div className="h-16 w-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl">🗑️</span>
               </div>
-            ))}
-          </div>
-        )}
+              <h3 className="text-lg font-medium text-slate-900 mb-2">Trash is empty</h3>
+              <p className="text-gray-600">Deleted datasets will appear here.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {trashDatasets.map((dataset) => (
+                <div key={dataset.id} className="bg-white rounded-xl shadow-md border-2 border-slate-200 p-6 flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-slate-900">{dataset.name}</h3>
+                    <p className="text-sm text-slate-500">{dataset.rowCount} records • {dataset.department}</p>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => onRestore?.(dataset.id)}
+                      className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-semibold hover:bg-slate-200"
+                    >
+                      Restore
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -523,122 +607,144 @@ export default function MainContent({
   };
 
   const renderReportsView = () => (
-    <div className="flex-1 p-6 overflow-auto">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-slate-900">Reports</h1>
-          <div className="flex items-center gap-3">
-            <input
-              type="text"
-              value={reportTitle}
-              onChange={(e) => setReportTitle(e.target.value)}
-              placeholder="Report title (optional)"
-              className="px-3 py-2 border-2 border-slate-200 rounded-xl text-sm w-56 focus:outline-none focus:ring-2 focus:ring-slate-400"
-            />
-            <select
-              value={reportType}
-              onChange={(e) => setReportType(e.target.value)}
-              className="px-3 py-2 border-2 border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-            >
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-              <option value="quarterly">Quarterly</option>
-              <option value="annual">Annual</option>
-              <option value="custom">Custom</option>
-            </select>
-            <button
-              type="button"
-              onClick={handleGenerateReport}
-              disabled={reportGenerating}
-              className="px-4 py-2 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-700 disabled:opacity-50"
-            >
-              {reportGenerating ? 'Generating…' : 'Generate Report'}
-            </button>
+    <div className="flex-1 flex flex-col h-full">
+      <div className="p-6 pb-0">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-2xl font-bold text-slate-900">Reports</h1>
+            <div className="flex items-center gap-3">
+              <input
+                type="text"
+                value={reportTitle}
+                onChange={(e) => setReportTitle(e.target.value)}
+                placeholder="Report title (optional)"
+                className="px-3 py-2 border-2 border-slate-200 rounded-xl text-sm w-56 focus:outline-none focus:ring-2 focus:ring-slate-400"
+              />
+              <select
+                value={reportType}
+                onChange={(e) => setReportType(e.target.value)}
+                className="px-3 py-2 border-2 border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+              >
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="annual">Annual</option>
+                <option value="custom">Custom</option>
+              </select>
+              <button
+                type="button"
+                onClick={handleGenerateReport}
+                disabled={reportGenerating}
+                className="px-4 py-2 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-700 disabled:opacity-50"
+              >
+                {reportGenerating ? 'Generating…' : 'Generate Report'}
+              </button>
+            </div>
           </div>
         </div>
-        {reports.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-md border-2 border-slate-200 p-12 text-center">
-            <div className="h-16 w-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">📋</span>
-            </div>
-            <h3 className="text-lg font-medium text-slate-900 mb-2">No reports yet</h3>
-            <p className="text-gray-600 mb-4">Generate a report to summarize your analytics for the selected period.</p>
-            <button type="button" onClick={handleGenerateReport} disabled={reportGenerating} className="px-4 py-2 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-700 disabled:opacity-50">
-              {reportGenerating ? 'Generating…' : 'Generate first report'}
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {reports.map((report) => (
-              <div key={report.id} className="bg-white rounded-xl shadow-md border-2 border-slate-200 p-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-semibold text-slate-900">{report.title}</h3>
-                    <p className="text-sm text-slate-500 mt-1">
-                      {report.type} • {report.generatedAt.toLocaleString()} • {report.format.toUpperCase()}
-                    </p>
-                    <p className="text-sm text-slate-600 mt-2">{report.content?.summary}</p>
-                  </div>
-                  <span className="text-xs px-2 py-1 bg-slate-100 text-slate-700 rounded">Export {report.format.toUpperCase()} (coming soon)</span>
-                </div>
+      </div>
+
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-auto p-6 pt-0">
+        <div className="max-w-7xl mx-auto">
+          {reports.length === 0 ? (
+            <div className="bg-white rounded-xl shadow-md border-2 border-slate-200 p-12 text-center">
+              <div className="h-16 w-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl">📋</span>
               </div>
-            ))}
-          </div>
-        )}
+              <h3 className="text-lg font-medium text-slate-900 mb-2">No reports yet</h3>
+              <p className="text-gray-600 mb-4">Generate a report to summarize your analytics for the selected period.</p>
+              <button type="button" onClick={handleGenerateReport} disabled={reportGenerating} className="px-4 py-2 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-700 disabled:opacity-50">
+                {reportGenerating ? 'Generating…' : 'Generate first report'}
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {reports.map((report) => (
+                <div key={report.id} className="bg-white rounded-xl shadow-md border-2 border-slate-200 p-6">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-semibold text-slate-900">{report.title}</h3>
+                      <p className="text-sm text-slate-500 mt-1">
+                        {report.type} • {report.generatedAt.toLocaleString()} • {report.format.toUpperCase()}
+                      </p>
+                      <p className="text-sm text-slate-600 mt-2">{report.content?.summary}</p>
+                    </div>
+                    <span className="text-xs px-2 py-1 bg-slate-100 text-slate-700 rounded">Export {report.format.toUpperCase()} (coming soon)</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 
   const renderSettingsView = () => (
-    <div className="flex-1 p-6 overflow-auto">
-      <div className="max-w-2xl mx-auto">
-        <h1 className="text-2xl font-bold text-slate-900 mb-6">Settings</h1>
-        <div className="bg-white rounded-xl shadow-md border-2 border-slate-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">Profile</h2>
-          <dl className="space-y-3">
-            <div>
-              <dt className="text-sm font-medium text-slate-500">Name</dt>
-              <dd className="text-slate-900 font-medium">{user.name}</dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-slate-500">Email</dt>
-              <dd className="text-slate-900">{user.email}</dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-slate-500">Role</dt>
-              <dd className="text-slate-900 capitalize">{user.role.replace(/_/g, ' ')}</dd>
-            </div>
-            {user.department && (
-              <div>
-                <dt className="text-sm font-medium text-slate-500">Department</dt>
-                <dd className="text-slate-900 capitalize">{user.department}</dd>
-              </div>
-            )}
-          </dl>
+    <div className="flex-1 flex flex-col h-full">
+      <div className="p-6 pb-0">
+        <div className="max-w-2xl mx-auto">
+          <h1 className="text-2xl font-bold text-slate-900 mb-6">Settings</h1>
         </div>
-        <div className="bg-white rounded-xl shadow-md border-2 border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-2">Preferences</h2>
-          <p className="text-sm text-slate-600">Notification and display preferences will be available in a future update.</p>
+      </div>
+
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-auto p-6 pt-0">
+        <div className="max-w-2xl mx-auto">
+          <div className="bg-white rounded-xl shadow-md border-2 border-slate-200 p-6 mb-6">
+            <h2 className="text-lg font-semibold text-slate-900 mb-4">Profile</h2>
+            <dl className="space-y-3">
+              <div>
+                <dt className="text-sm font-medium text-slate-500">Name</dt>
+                <dd className="text-slate-900 font-medium">{user.name}</dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-slate-500">Email</dt>
+                <dd className="text-slate-900 font-medium">{user.email}</dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-slate-500">Role</dt>
+                <dd className="text-slate-900 capitalize">{user.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</dd>
+              </div>
+              {user.department && (
+                <div>
+                  <dt className="text-sm font-medium text-slate-500">Department</dt>
+                  <dd className="text-slate-900 capitalize">{user.department}</dd>
+                </div>
+              )}
+            </dl>
+          </div>
+          <div className="bg-white rounded-xl shadow-md border-2 border-slate-200 p-6">
+            <h2 className="text-lg font-semibold text-slate-900 mb-2">Preferences</h2>
+            <p className="text-sm text-slate-600">Notification and display preferences will be available in a future update.</p>
+          </div>
         </div>
       </div>
     </div>
   );
 
-  switch (activeView) {
-    case 'home':
-      return renderHomeView();
-    case 'datasets':
-      return renderDatasetsView();
-    case 'analytics':
-      return renderAnalyticsView();
-    case 'trash':
-      return renderTrashView();
-    case 'reports':
-      return renderReportsView();
-    case 'settings':
-      return renderSettingsView();
-    default:
-      return renderHomeView();
-  }
+  return (
+    <div className="flex flex-col h-full">
+      {(() => {
+        switch (activeView) {
+          case 'home':
+            return renderHomeView();
+          case 'datasets':
+            return renderDatasetsView();
+          case 'analytics':
+            return renderAnalyticsView();
+          case 'trash':
+            return renderTrashView();
+          case 'reports':
+            return renderReportsView();
+          case 'settings':
+            return renderSettingsView();
+          default:
+            return renderHomeView();
+        }
+      })()}
+    </div>
+  );
 }

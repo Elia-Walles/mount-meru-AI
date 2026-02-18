@@ -1,7 +1,7 @@
 // Client-side API service for database operations
-import type { User, Dataset, PatientRecord, AnalyticsResult, Report } from './types';
+import type { User, Dataset, PatientRecord, AnalyticsResult, Report, Department } from './types';
 
-export type { User, Dataset, PatientRecord, AnalyticsResult, Report };
+export type { User, Dataset, PatientRecord, AnalyticsResult, Report, Department };
 
 class ApiService {
   private baseUrl = '/api';
@@ -360,6 +360,85 @@ class ApiService {
     } catch (error) {
       console.error('Generate report API error:', error);
       return null;
+    }
+  }
+
+  // Departments
+  async getDepartments(): Promise<Department[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/departments`);
+      const data = await response.json();
+      
+      if (data.success) {
+        return data.departments.map((dept: any) => ({
+          ...dept,
+          createdAt: new Date(dept.createdAt),
+          updatedAt: new Date(dept.updatedAt)
+        }));
+      }
+      return [];
+    } catch (error) {
+      console.error('Get departments API error:', error);
+      return [];
+    }
+  }
+
+  async createDepartment(departmentData: Omit<Department, 'id' | 'createdAt' | 'updatedAt'>): Promise<Department | null> {
+    try {
+      const response = await fetch(`${this.baseUrl}/departments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(departmentData),
+      });
+
+      const data = await response.json();
+      
+      if (data.success && data.department) {
+        const dept = data.department;
+        return {
+          ...dept,
+          createdAt: new Date(dept.createdAt),
+          updatedAt: new Date(dept.updatedAt)
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error('Create department API error:', error);
+      return null;
+    }
+  }
+
+  async updateDepartment(id: string, updates: Partial<Omit<Department, 'id' | 'createdAt' | 'updatedAt'>>): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl}/departments/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates),
+      });
+
+      const data = await response.json();
+      return data.success;
+    } catch (error) {
+      console.error('Update department API error:', error);
+      return false;
+    }
+  }
+
+  async deleteDepartment(id: string): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl}/departments/${id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+      return data.success;
+    } catch (error) {
+      console.error('Delete department API error:', error);
+      return false;
     }
   }
 }

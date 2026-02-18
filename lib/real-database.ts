@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { db, initializeDatabase, seedDatabase } from './database';
-import { User, Dataset, PatientRecord, AnalyticsResult, Dashboard, Report, DashboardWidget } from './types';
+import { User, Dataset, PatientRecord, AnalyticsResult, Dashboard, Report, DashboardWidget, Department } from './types';
 
 /** Parse JSON column: driver may return already-parsed object/array (e.g. MySQL JSON type). */
 function parseJson<T>(value: unknown, fallback: T): T {
@@ -617,6 +617,99 @@ export class RealDatabase {
 
   async updateUserPassword(email: string, passwordHash: string): Promise<void> {
     await db.execute(`UPDATE users SET password_hash = ? WHERE email = ?`, [passwordHash, email]);
+  }
+
+  // Department Management
+  async getDepartments(): Promise<Department[]> {
+    const rows = await db.query<any[]>(`
+      SELECT id, name, description, is_active as isActive, sort_order as sortOrder,
+             created_at as createdAt, updated_at as updatedAt
+      FROM departments
+      WHERE is_active = TRUE
+      ORDER BY sort_order ASC, name ASC
+    `);
+
+    return rows.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      isActive: row.isActive,
+      sortOrder: row.sortOrder,
+      createdAt: new Date(row.createdAt),
+      updatedAt: new Date(row.updatedAt)
+    }));
+  }
+
+  async getDepartmentById(id: string): Promise<Department | null> {
+    const row = await db.queryOne<any>(`
+      SELECT id, name, description, is_active as isActive, sort_order as sortOrder,
+             created_at as createdAt, updated_at as updatedAt
+      FROM departments
+      WHERE id = ?
+    `, [id]);
+
+    if (!row) return null;
+
+    return {
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      isActive: row.isActive,
+      sortOrder: row.sortOrder,
+      createdAt: new Date(row.createdAt),
+      updatedAt: new Date(row.updatedAt)
+    };
+  }
+
+  async createDepartment(departmentData: Omit<Department, 'id' | 'createdAt' | 'updatedAt'>): Promise<Department> {
+    const id = crypto.randomUUID();
+    await db.execute(`
+      INSERT INTO departments (id, name, description, is_active, sort_order)
+      VALUES (?, ?, ?, ?, ?)
+    `, [
+      id,
+      departmentData.name,
+      departmentData.description || null,
+      departmentData.isActive,
+      departmentData.sortOrder
+    ]);
+
+    return await this.getDepartmentById(id) as Department;
+  }
+
+  async updateDepartment(id: string, updates: Partial<Omit<Department, 'id' | 'createdAt' | 'updatedAt'>>): Promise<void> {
+    const fields: string[] = [];
+    const values: any[] = [];
+
+    if (updates.name !== undefined) {
+      fields.push('name = ?');
+      values.push(updates.name);
+    }
+    if (updates.description !== undefined) {
+      fields.push('description = ?');
+      values.push(updates.description);
+    }
+    if (updates.isActive !== undefined) {
+      fields.push('is_active = ?');
+      values.push(updates.isActive);
+    }
+    if (updates.sortOrder !== undefined) {
+      fields.push('sort_order = ?');
+      values.push(updates.sortOrder);
+    }
+
+    if (fields.length === 0) return;
+
+    values.push(id);
+    await db.execute(`
+      UPDATE departments 
+      SET ${fields.join(', ')}
+      WHERE id = ?
+    `, values);
+  }
+
+  async deleteDepartment(id: string): Promise<void> {
+    await db.execute(`DELETE FROM departments WHERE id = ?`, [id]);
   }
 }
 
