@@ -1,36 +1,103 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mount Meru AI - Hospital Data Analytics Platform
+
+A comprehensive hospital data analytics platform designed for clinical and managerial decision-making in Tanzanian healthcare facilities. Aligned with Tanzania HMIS & DHIS2 standards.
+
+## Features
+
+- **Data Analytics**: Advanced analytics for hospital operations and clinical data
+- **AI-Powered Insights**: Intelligent suggestions and trend analysis
+- **Department Management**: Dynamic department configuration and monitoring
+- **Patient Records**: Comprehensive patient data management
+- **Dashboard & Reports**: Real-time dashboards and customizable reports
+- **Multi-Department Support**: OPD, IPD, Laboratory, Pharmacy, RCH, Theatre, and Mortuary
+- **Role-Based Access**: Administrator, Data Analyst, Clinician, and other healthcare roles
+
+## Technology Stack
+
+- **Frontend**: Next.js 16 with TypeScript
+- **Backend**: Node.js with TiDB Cloud database
+- **UI**: Modern responsive design with Tailwind CSS
+- **Authentication**: Secure user authentication and authorization
+- **API**: RESTful API endpoints for all operations
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+ installed
+- MySQL/TiDB database connection
+- Environment variables configured
+
+### Installation
+
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/Elia-Walles/mount-meru-AI.git
+cd mount-meru-AI
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Set up environment variables:
+```bash
+cp .env.example .env.local
+# Edit .env.local with your database configuration
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Run the development server:
+```bash
+npm run dev
+```
 
-## Learn More
+5. Open [http://localhost:3000](http://localhost:3000) with your browser to access the application.
 
-To learn more about Next.js, take a look at the following resources:
+## Database Setup
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The application uses TiDB Cloud for data storage. Ensure you have the following environment variables configured:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `DATABASE_HOST`
+- `DATABASE_PORT`
+- `DATABASE_USERNAME`
+- `DATABASE_PASSWORD`
+- `DATABASE_NAME`
 
-## Deploy on Vercel
+The database schema is automatically initialized on first run.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Project Structure
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `app/` - Next.js app router pages and API routes
+- `components/` - Reusable React components
+- `lib/` - Utility functions and database services
+- `hooks/` - Custom React hooks
+- `types/` - TypeScript type definitions
+- `public/` - Static assets including the Mount Meru logo
+
+## Available Scripts
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run start` - Start production server
+- `npm run lint` - Run ESLint
+
+## Deployment
+
+This application can be deployed on any platform that supports Node.js applications. The build process creates an optimized production bundle ready for deployment.
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License.
+
+## Support
+
+For support and inquiries, please contact the development team or create an issue in the repository.
